@@ -29,3 +29,9 @@ button:active {
   color:black;
   cursor: pointer;
 }
+button:disabled {
+  background-color: white;
+  /* border-color: white; */
+  color:white;
+  cursor: not-allowed;
+}

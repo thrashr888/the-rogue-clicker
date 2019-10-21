@@ -32,25 +32,27 @@ const ENEMIES_LIST = [
   'M', // Angry Mama
 ];
 
+const DEFAULT_RPG = {
+  fld: [...DEFAULT_FIELD],
+  flr: [...DEFAULT_FLOOR],
+  ms: [
+    {m: D_M, loc: D_MLOC, hp: D_MHP},
+  ],
+  tik: 0,
+  xp: 0,
+  gld: 0,
+  hp: 10,
+  str: 10,
+  arm: 10,
+  füd: 10,
+  lvl: 1,
+  autoHit: false,
+  autoEat: false,
+};
+
 function App() {
   let [tick, setTick] = useState(0);
-  let [rpg, setRpg] = useState({
-    fld: [...DEFAULT_FIELD],
-    flr: [...DEFAULT_FLOOR],
-    ms: [
-      {m: D_M, loc: D_MLOC, hp: D_MHP},
-    ],
-    tik: 0,
-    xp: 0,
-    gld: 0,
-    hp: 10,
-    str: 10,
-    arm: 10,
-    füd: 10,
-    lvl: 1,
-    autoHit: false,
-    autoEat: false,
-  });
+  let [rpg, setRpg] = useState({...DEFAULT_RPG});
 
   const Field = () => {
     let f = [...EMPTY_FIELD];
@@ -69,6 +71,12 @@ function App() {
     setRpg(rpg);
   }
 
+  /*
+  TODO
+  - swich from using a pos value to using an index
+  - push new enemies to the end
+  - pop PLAYER_POS enemeies (maybe null)
+  */
   function foe(pos = PLAYER_POS + 1){
     for (let i = 0, l = rpg.ms.length; i < l; i++) {
       if (rpg.ms[i].loc === pos) {
@@ -76,11 +84,6 @@ function App() {
       }
     }
     return -1;
-  }
-
-  function kill(i){
-    rpg.ms = rpg.ms.slice(i, i + 1);
-    setRpg(rpg);
   }
   
   const Floor = () => {
@@ -107,7 +110,7 @@ function App() {
     rpg.ms.push(e);
   }
 
-  const handleHit = e => {
+  const handleHit = () => {
     setTick(++tick);
     rpg.tik++;
     mv(-1);
@@ -128,7 +131,12 @@ function App() {
         mv(1); // stay
       }
     }
+  
+    if (chance(0, 5) > 4) {
+      spawn();
+    }
 
+    // level up?
     if(rpg.xp >= 10 * (rpg.lvl * rpg.lvl)){
       rpg.lvl++;
     }
@@ -137,10 +145,13 @@ function App() {
   };
 
   const Hit = () => {
-    return <button type="button" onClick={handleHit}>Hit</button>
+    return <button
+      type="button"
+      onClick={handleHit}
+      >Hit</button>
   };
 
-  const handleEat = function (){
+  const handleEat = () => {
     setTick(++tick);
     rpg.tik++;
     mv(-1);
@@ -150,10 +161,15 @@ function App() {
   }
 
   const Eat = () => {
-    return <button type="button" onClick={handleEat}>Eat</button>
+    let disabled = rpg.füd <= 0;
+    return <button
+      type="button"
+      onClick={handleEat}
+      disabled={disabled}
+      >Eat</button>
   };
 
-  const handleBuy = function (){
+  const handleBuy = () => {
     setTick(++tick);
     if (rpg.gld > 0) {
       rpg.gld--;
@@ -165,8 +181,36 @@ function App() {
   }
 
   const Buy = () => {
-    return <button type="button" onClick={handleBuy}>Buy</button>
+    let disabled = rpg.gld <= 0;
+    return <button
+      type="button"
+      onClick={handleBuy}
+      disabled={disabled}
+      >Buy</button>
   };
+
+  const handlePlay = () => {
+    // console.log('PLAY', DEFAULT_RPG);
+    setTick(0);
+    rpg.ms = [];
+    setRpg({...DEFAULT_RPG});
+  }
+
+  const Play = () => {
+    return <button
+      type="button"
+      onClick={handlePlay}
+      >Play</button>
+  };
+
+  if (rpg.hp <= 0) {
+    return (
+      <div className="App"><pre><code>
+      YOU DIED{"\n"}
+      <Play />
+      </code></pre></div>
+    );
+  }
   
   return (
     <div className="App"><pre><code>
@@ -187,8 +231,7 @@ function App() {
 ║    TIK {pad(rpg.tik)}               ║                         ║{"\n"}
 ║                                 ║                         ║{"\n"}
 ╚═════════════════════════════════╩═════════════════════════╝{"\n"}
-    </code></pre>
-    </div>
+    </code></pre></div>
   );
 }
 
