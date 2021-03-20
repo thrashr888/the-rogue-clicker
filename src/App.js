@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
+import useEventListener from '@use-it/event-listener'
 import './App.css';
+
 
 const PLAYER_POS = 5;
 const PLAYER_CHAR = '@';
-const D_M = 'Z';
 const D_MHP = 1;
-const D_MLOC = 15;
 const EMPTY_FIELD = '                                                  '.split('');
 const DEFAULT_FIELD = '       @                                          '.split('');
 const DEFAULT_FLOOR = '--------------------------------------------------'.split('');
@@ -35,9 +35,7 @@ const ENEMIES_LIST = [
 const DEFAULT_RPG = {
   fld: [...DEFAULT_FIELD],
   flr: [...DEFAULT_FLOOR],
-  ms: [
-    {m: D_M, loc: D_MLOC, hp: D_MHP},
-  ],
+  ms: Array(DEFAULT_FLOOR.length-1),
   tik: 0,
   xp: 0,
   gld: 0,
@@ -54,37 +52,16 @@ function App() {
   let [tick, setTick] = useState(0);
   let [rpg, setRpg] = useState({...DEFAULT_RPG});
 
+  if (tick === 0) spawn();
+
   const Field = () => {
     let f = [...EMPTY_FIELD];
-    f[PLAYER_POS] = PLAYER_CHAR;
     for (let i = 0, l = rpg.ms.length; i < l; i++) {
-      let m = rpg.ms[i];
-      f[m.loc] = m.m;
+      f[i] = rpg.ms[i] ? rpg.ms[i].m : ' ';
     }
+    f[PLAYER_POS] = PLAYER_CHAR;
     return f.join('').substring(0, DEFAULT_FIELD.length);
   };
-
-  function mv(dir){
-    for (let i = 0, l = rpg.ms.length; i < l; i++) {
-      rpg.ms[i].loc += dir;
-    }
-    setRpg(rpg);
-  }
-
-  /*
-  TODO
-  - swich from using a pos value to using an index
-  - push new enemies to the end
-  - pop PLAYER_POS enemeies (maybe null)
-  */
-  function foe(pos = PLAYER_POS + 1){
-    for (let i = 0, l = rpg.ms.length; i < l; i++) {
-      if (rpg.ms[i].loc === pos) {
-        return i;
-      }
-    }
-    return -1;
-  }
   
   const Floor = () => {
     rpg.flr.shift();
@@ -101,10 +78,11 @@ function App() {
   }
 
   function spawn() {
+    console.log('BOO!')
+    // TODO grab higher enemy based on level
     let i = ENEMIES_LIST[chance(0, ENEMIES_LIST.length - 1)];
     let e = {
         m: i,
-        loc: chance(PLAYER_POS + 2, DEFAULT_FLOOR.length),
         hp: D_MHP * rpg.lvl
       };
     rpg.ms.push(e);
@@ -113,14 +91,13 @@ function App() {
   const handleHit = () => {
     setTick(++tick);
     rpg.tik++;
-    mv(-1);
 
     // fight
-    let f = foe(PLAYER_POS);
-    if (f >= 0) {
+    let f = rpg.ms.shift();
+    if (f !== undefined) {
       rpg.hp -= chance();
-      rpg.ms[f].hp -= chance(rpg.str);
-      if (rpg.ms[f].hp <= 0) {
+      f.hp -= chance(rpg.str);
+      if (f.hp <= 0) {
         // kill
         rpg.xp += chance(1);
         rpg.gld += chance();
@@ -128,33 +105,35 @@ function App() {
         spawn();
       } else {
         // don't kill
-        mv(1); // stay
+        rpg.ms.unshift(f) // stay
       }
     }
   
-    if (chance(0, 5) > 4) {
+    if (chance(0, 100 - (rpg.lvl * 2)) >= 80) {
+      console.log('surprise!')
       spawn();
+    } else {
+      rpg.ms.push(undefined);
     }
 
     // level up?
-    if(rpg.xp >= 10 * (rpg.lvl * rpg.lvl)){
+    if (rpg.xp >= 10 * (rpg.lvl * rpg.lvl)) {
       rpg.lvl++;
     }
   
     setRpg(rpg);
   };
-
-  const Hit = () => {
-    return <button
+  
+  const Hit = () => (
+    <button
       type="button"
       onClick={handleHit}
       >Hit</button>
-  };
+  );
 
   const handleEat = () => {
     setTick(++tick);
     rpg.tik++;
-    mv(-1);
     rpg.hp += chance(1);
     rpg.füd--;
     setRpg(rpg);
@@ -162,12 +141,13 @@ function App() {
 
   const Eat = () => {
     let disabled = rpg.füd <= 0;
-    return <button
+    return (
+    <button
       type="button"
       onClick={handleEat}
       disabled={disabled}
       >Eat</button>
-  };
+  )};
 
   const handleBuy = () => {
     setTick(++tick);
@@ -182,12 +162,13 @@ function App() {
 
   const Buy = () => {
     let disabled = rpg.gld <= 0;
-    return <button
+    return (
+    <button
       type="button"
       onClick={handleBuy}
       disabled={disabled}
       >Buy</button>
-  };
+  )};
 
   const handlePlay = () => {
     // console.log('PLAY', DEFAULT_RPG);
@@ -195,6 +176,23 @@ function App() {
     rpg.ms = [];
     setRpg({...DEFAULT_RPG});
   }
+
+  function handler({ key }) {
+    switch(key){
+      case 'h':
+        handleHit();
+        break;
+      case 'e':
+        handleEat();
+        break;
+      case 'b':
+        handleBuy();
+        break;
+      default:
+        break;
+    }
+  }
+  useEventListener('keydown', handler);
 
   const Play = () => {
     return <button
